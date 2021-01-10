@@ -1,0 +1,11 @@
+[package]
+name = "github-clone-org"
+version = "0.1.0"
+authors = ["Daniel <30466471+daniel0611@users.noreply.github.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+reqwest = { version = "^0.11.0", features = ["blocking", "json"] }
+serde = { version = "1.0.118", features = ["derive"] }
