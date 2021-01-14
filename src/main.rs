@@ -38,12 +38,18 @@ fn main() {
         }
         Err(msg) => eprintln!("Error getting repositories: {}", msg),
     }
-    // TODO: actually clone the repositories
 }
 
 fn get_repos(entity: &String) -> Result<Vec<Repository>, String> {
-    // TODO: support users too
-    let url = format!("{}/orgs/{}/repos", GITHUB_API, entity);
+    match get_repos_internal(entity, true) {
+        Ok(repos) => Ok(repos),
+        Err(_) => get_repos_internal(entity, false),
+    }
+}
+
+fn get_repos_internal(entity: &String, is_user: bool) -> Result<Vec<Repository>, String> {
+    let descriptor = if is_user {"users"} else {"orgs"};
+    let url = format!("{}/{}/{}/repos", GITHUB_API, descriptor, entity);
     let client = blocking::Client::new();
     let response = match client
         .get(&url)
@@ -81,31 +87,37 @@ fn clone_repositories(entity: &String, repositories: &Vec<Repository>) {
 
 fn clone_repository(path: String, repo: &Repository) {
     // TODO: support bare only repositories
-    println!("Cloning {} repository...", repo.clone_url);
+    let path = Path::new(&path);
 
-    let mut cbs = RemoteCallbacks::new();
-    cbs.transfer_progress(|progress| {
-        let rec = progress.received_objects();
-        let tot = progress.total_objects();
-        let percentage = 100 * rec / tot;
+    if path.exists() {
+        println!("Repo {} already cloned.", repo.name);
+    } else {
+        println!("Cloning {} repository...", repo.name);
 
-        print!(
-            "\r{}/{} ({}%)",
-            progress.received_objects(),
-            progress.total_objects(),
-            percentage
-        );
-        true
-    });
-
-    let mut fetch_opts = FetchOptions::new();
-    fetch_opts.remote_callbacks(cbs);
-
-    let mut builder = RepoBuilder::new();
-    builder.fetch_options(fetch_opts);
-
-    match builder.clone(&repo.clone_url, Path::new(&path)) {
-        Ok(_) => println!("\nSuccessfully cloned {}.", repo.clone_url),
-        Err(e) => panic!(e),
+        let mut cbs = RemoteCallbacks::new();
+        cbs.transfer_progress(|progress| {
+            let rec = progress.received_objects();
+            let tot = progress.total_objects();
+            let percentage = 100 * rec / tot;
+    
+            print!(
+                "\r{}/{} ({}%)",
+                progress.received_objects(),
+                progress.total_objects(),
+                percentage
+            );
+            true
+        });
+    
+        let mut fetch_opts = FetchOptions::new();
+        fetch_opts.remote_callbacks(cbs);
+    
+        let mut builder = RepoBuilder::new();
+        builder.fetch_options(fetch_opts);
+    
+        match builder.clone(&repo.clone_url, path) {
+            Ok(_) => println!("\nSuccessfully cloned {}.", repo.clone_url),
+            Err(e) => panic!(e),
+        }
     }
 }
