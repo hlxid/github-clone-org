@@ -2,9 +2,8 @@ use reqwest::header::USER_AGENT;
 use reqwest::{blocking, StatusCode};
 use serde::Deserialize;
 
-use std::fs;
-use std::result::Result;
 use std::path::Path;
+use std::result::Result;
 
 use git2::{build::RepoBuilder, FetchOptions, RemoteCallbacks};
 
@@ -48,7 +47,7 @@ fn get_repos(entity: &String) -> Result<Vec<Repository>, String> {
 }
 
 fn get_repos_internal(entity: &String, is_user: bool) -> Result<Vec<Repository>, String> {
-    let descriptor = if is_user {"users"} else {"orgs"};
+    let descriptor = if is_user { "users" } else { "orgs" };
     let url = format!("{}/{}/{}/repos", GITHUB_API, descriptor, entity);
     let client = blocking::Client::new();
     let response = match client
@@ -70,15 +69,7 @@ fn get_repos_internal(entity: &String, is_user: bool) -> Result<Vec<Repository>,
     }
 }
 
-fn create_entity_directory(entity: &String) {
-    match fs::create_dir_all(entity) {
-        Err(err) => panic!(err),
-        _ => (),
-    }
-}
-
 fn clone_repositories(entity: &String, repositories: &Vec<Repository>) {
-    create_entity_directory(entity);
     for repo in repositories {
         let path = format!("{}/{}", entity, repo.name);
         clone_repository(path, repo);
@@ -99,7 +90,6 @@ fn clone_repository(path: String, repo: &Repository) {
             let rec = progress.received_objects();
             let tot = progress.total_objects();
             let percentage = 100 * rec / tot;
-    
             print!(
                 "\r{}/{} ({}%)",
                 progress.received_objects(),
@@ -108,13 +98,13 @@ fn clone_repository(path: String, repo: &Repository) {
             );
             true
         });
-    
+
         let mut fetch_opts = FetchOptions::new();
         fetch_opts.remote_callbacks(cbs);
-    
+
         let mut builder = RepoBuilder::new();
         builder.fetch_options(fetch_opts);
-    
+
         match builder.clone(&repo.clone_url, path) {
             Ok(_) => println!("\nSuccessfully cloned {}.", repo.clone_url),
             Err(e) => panic!(e),
