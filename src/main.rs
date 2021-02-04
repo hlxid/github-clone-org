@@ -27,23 +27,33 @@ fn main() {
 
 fn clone_repositories(entity: &String, repositories: &Vec<Repository>) {
     for repo in repositories {
-        let path = format!("{}/{}", entity, repo.name);
-        if repo.is_at_path(&path) {
-            println!("Repo {} already cloned.", repo.name);
-        } else {
-            println!("Cloning {} repository...", repo.name);
-            repo.clone(&path, |progress| {
-                let rec = progress.received_objects();
-                let tot = progress.total_objects();
-                let percentage = 100 * rec / tot;
-                print!(
-                    "\r{}/{} ({}%)",
-                    progress.received_objects(),
-                    progress.total_objects(),
-                    percentage
-                );
-            });
-            println!("\nSuccessfully cloned {}.", repo.clone_url)
-        }
+        process_repo(entity, repo);
     }
+}
+
+fn process_repo(entity: &String, repo: &Repository) {
+    let path = format!("{}/{}", entity, repo.name);
+    if repo.is_at_path(&path) {
+        println!("Repo {} already cloned.", repo.name);
+    } else {
+        clone_repo(&path, repo);
+    }
+}
+
+fn clone_repo(path: &String, repo: &Repository) {
+    println!("Cloning {} repository...", repo.name);
+    repo.clone(&path, handle_clone_progress);
+    println!("\nSuccessfully cloned {}.", repo.clone_url)
+}
+
+fn handle_clone_progress(progress: git2::Progress) {
+    let rec = progress.received_objects();
+    let tot = progress.total_objects();
+    let percentage = 100 * rec / tot;
+    print!(
+        "\r{}/{} ({}%)",
+        progress.received_objects(),
+        progress.total_objects(),
+        percentage
+    );
 }
