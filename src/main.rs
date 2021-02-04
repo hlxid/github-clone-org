@@ -1,23 +1,14 @@
+mod repository;
+use repository::Repository;
+
 use reqwest::header::USER_AGENT;
 use reqwest::{blocking, StatusCode};
-use serde::Deserialize;
 
-use std::path::Path;
 use std::result::Result;
-
-use git2::{build::RepoBuilder, FetchOptions, RemoteCallbacks};
 
 const GITHUB_API: &str = "https://api.github.com";
 
 // TODO: support auth
-
-// #[derive(Debug)]
-#[derive(Deserialize, Debug)]
-struct Repository {
-    name: String,
-    clone_url: String,
-}
-
 // TODO: use tokio runtime
 
 fn main() {
@@ -72,42 +63,22 @@ fn get_repos_internal(entity: &String, is_user: bool) -> Result<Vec<Repository>,
 fn clone_repositories(entity: &String, repositories: &Vec<Repository>) {
     for repo in repositories {
         let path = format!("{}/{}", entity, repo.name);
-        clone_repository(path, repo);
-    }
-}
-
-fn clone_repository(path: String, repo: &Repository) {
-    // TODO: support bare only repositories
-    let path = Path::new(&path);
-
-    if path.exists() {
-        println!("Repo {} already cloned.", repo.name);
-    } else {
-        println!("Cloning {} repository...", repo.name);
-
-        let mut cbs = RemoteCallbacks::new();
-        cbs.transfer_progress(|progress| {
-            let rec = progress.received_objects();
-            let tot = progress.total_objects();
-            let percentage = 100 * rec / tot;
-            print!(
-                "\r{}/{} ({}%)",
-                progress.received_objects(),
-                progress.total_objects(),
-                percentage
-            );
-            true
-        });
-
-        let mut fetch_opts = FetchOptions::new();
-        fetch_opts.remote_callbacks(cbs);
-
-        let mut builder = RepoBuilder::new();
-        builder.fetch_options(fetch_opts);
-
-        match builder.clone(&repo.clone_url, path) {
-            Ok(_) => println!("\nSuccessfully cloned {}.", repo.clone_url),
-            Err(e) => panic!(e),
+        if repo.is_at_path(&path) {
+            println!("Repo {} already cloned.", repo.name);
+        } else {
+            println!("Cloning {} repository...", repo.name);
+            repo.clone(&path, |progress| {
+                let rec = progress.received_objects();
+                let tot = progress.total_objects();
+                let percentage = 100 * rec / tot;
+                print!(
+                    "\r{}/{} ({}%)",
+                    progress.received_objects(),
+                    progress.total_objects(),
+                    percentage
+                );
+            });
+            println!("\nSuccessfully cloned {}.", repo.clone_url)
         }
     }
 }
