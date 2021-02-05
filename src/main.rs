@@ -7,20 +7,15 @@ use repository::Repository;
 // TODO: use tokio runtime
 
 fn main() {
-    println!("Hello, world!");
     let args: Vec<String> = std::env::args().collect();
     if args.len() == 1 {
         eprintln!("No entity argument provided");
         return;
     }
     let entity = &args[1];
-    println!("Entity: {}", entity);
 
     match github::get_repos(entity) {
-        Ok(repositories) => {
-            println!("Repos: {:#?}", repositories);
-            clone_repositories(entity, &repositories);
-        }
+        Ok(repositories) => clone_repositories(entity, &repositories),
         Err(msg) => eprintln!("Error getting repositories: {}", msg),
     }
 }
@@ -34,19 +29,30 @@ fn clone_repositories(entity: &String, repositories: &Vec<Repository>) {
 fn process_repo(entity: &String, repo: &Repository) {
     let path = format!("{}/{}", entity, repo.name);
     if repo.is_at_path(&path) {
-        println!("Repo {} already cloned.", repo.name);
+        fetch_repo(&path, repo);
     } else {
         clone_repo(&path, repo);
     }
 }
 
+fn fetch_repo(path: &String, repo: &Repository) {
+    println!("Fetching {}...", repo.name);
+    match repo.fetch(&path, handle_progress) {
+        Ok(()) => println!("\nSuccessfully fetched {}.", repo.clone_url),
+        Err(e) => panic!("{}", e),
+    };
+}
+
 fn clone_repo(path: &String, repo: &Repository) {
     println!("Cloning {} repository...", repo.name);
-    repo.clone(&path, handle_clone_progress);
+    match repo.clone(&path, handle_progress) {
+        Err(e) => panic!("Error while cloning: {}", e),
+        Ok(()) => (),
+    };
     println!("\nSuccessfully cloned {}.", repo.clone_url)
 }
 
-fn handle_clone_progress(progress: git2::Progress) {
+fn handle_progress(progress: git2::Progress) {
     let rec = progress.received_objects();
     let tot = progress.total_objects();
     let percentage = 100 * rec / tot;
