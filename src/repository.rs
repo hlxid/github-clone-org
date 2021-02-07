@@ -61,3 +61,61 @@ impl Repository {
         fetch_opts
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod clone {
+        #[test]
+        fn should_work() {
+            let path = &tempfile::tempdir().unwrap();
+            let r = super::test_repo();
+            r.clone(path, |_p| {}).unwrap();
+    
+            assert!(r.is_at_path(path)); // is_at_path must be true, because we cloned it there*
+            assert!(path.path().join(".git").exists()); // .git directory should exist
+        }
+    
+        #[test]
+        #[should_panic(expected = "unsupported URL protocol")]
+        fn should_fail_on_invalid_clone_url() {
+            let path = &tempfile::tempdir().unwrap();
+            let mut r = super::test_repo();
+            r.clone_url = "test123".to_owned();
+            r.clone(path, |_p| {}).unwrap();
+        }
+    }
+
+    mod fetch {
+        #[test]
+        fn should_work_on_valid_repo() {
+            let path = &tempfile::tempdir().unwrap();
+            let r = super::test_repo();
+            r.clone(path, |_p| {}).unwrap();
+            r.fetch(path, |_p| {}).unwrap();
+        }
+
+        #[test]
+        #[should_panic(expected = "could not find repository")]
+        fn should_fail_on_empty_dir() {
+            let path = &tempfile::tempdir().unwrap();
+            super::test_repo().fetch(path, |_p| {}).unwrap();
+        }
+    }
+
+    #[test]
+    fn empty_dir_is_not_repo() {
+        let path = tempfile::tempdir().unwrap();
+        let sub_dir = path.path().join("test"); // dir doesn't exist there => repo is not there
+        assert!(!test_repo().is_at_path(sub_dir));
+    }
+
+
+    fn test_repo() -> Repository {
+        Repository {
+            name: "Hello-World".to_owned(),
+            clone_url: "https://github.com/octocat/Hello-World.git".to_owned(),
+        }
+    }
+}
