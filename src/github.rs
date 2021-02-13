@@ -54,6 +54,13 @@ mod tests {
         internal_test("kubernetes", repos.await.unwrap());
     }
 
+    #[tokio::test]
+    #[should_panic(expected = "entity is not valid")]
+    async fn fails_with_nonexistent_entity() {
+        let repos = get_repos("abnkklvmdlkdklvvfdslkjdsfjldfslkdsalksadmlk"); // Propably nobody will use this name, at least I hope
+        internal_test("abnkklvmdlkdklvvfdslkjdsfjldfslkdsalksadmlk", repos.await.unwrap());
+    }
+
     fn internal_test(entity: &str, repos: Vec<Repository>) {
         assert!(repos.len() > 0); // Should find atleast one repo
 
