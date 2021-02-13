@@ -5,31 +5,32 @@ use crate::repository::Repository;
 const GITHUB_API: &str = "https://api.github.com";
 
 use reqwest::header::USER_AGENT;
-use reqwest::{blocking, StatusCode};
+use reqwest::StatusCode;
 
-pub fn get_repos<S: AsRef<str>>(entity: S) -> Result<Vec<Repository>, String> {
+pub async fn get_repos<S: AsRef<str>>(entity: S) -> Result<Vec<Repository>, String> {
     let entity_ref = entity.as_ref();
-    match get_repos_internal(entity_ref, true) {
+    match get_repos_internal(entity_ref, true).await {
         Ok(repos) => Ok(repos),
-        Err(_) => get_repos_internal(entity_ref, false),
+        Err(_) => get_repos_internal(entity_ref, false).await,
     }
 }
 
-fn get_repos_internal(entity: &str, is_user: bool) -> Result<Vec<Repository>, String> {
+async fn get_repos_internal(entity: &str, is_user: bool) -> Result<Vec<Repository>, String> {
     let descriptor = if is_user { "users" } else { "orgs" };
     let url = format!("{}/{}/{}/repos", GITHUB_API, descriptor, entity);
-    let client = blocking::Client::new();
+    let client = reqwest::Client::new();
     let response = match client
         .get(&url)
         .header(USER_AGENT, "github-clone-org")
         .send()
+        .await
     {
         Ok(response) => Ok(response),
         Err(err) => Err(format!("{}", err)),
     }?;
 
     match response.status() {
-        StatusCode::OK => match response.json::<Vec<Repository>>() {
+        StatusCode::OK => match response.json::<Vec<Repository>>().await {
             Ok(repos) => Ok(repos),
             Err(err) => Err(format!("{}", err)),
         },
@@ -41,16 +42,16 @@ fn get_repos_internal(entity: &str, is_user: bool) -> Result<Vec<Repository>, St
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn works_with_user() {
+    #[tokio::test]
+    async fn works_with_user() {
         let repos = get_repos("daniel0611");
-        internal_test("daniel0611", repos.unwrap());
+        internal_test("daniel0611", repos.await.unwrap());
     }
 
-    #[test]
-    fn works_with_org() {
+    #[tokio::test]
+    async fn works_with_org() {
         let repos = get_repos("kubernetes");
-        internal_test("kubernetes", repos.unwrap());
+        internal_test("kubernetes", repos.await.unwrap());
     }
 
     fn internal_test(entity: &str, repos: Vec<Repository>) {

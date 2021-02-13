@@ -6,7 +6,8 @@ use repository::Repository;
 // TODO: support auth
 // TODO: use tokio runtime
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.len() == 1 {
         eprintln!("No entity argument provided");
@@ -14,7 +15,7 @@ fn main() {
     }
     let entity = &args[1];
 
-    match github::get_repos(entity) {
+    match github::get_repos(entity).await {
         Ok(repositories) => clone_repositories(entity, &repositories),
         Err(msg) => eprintln!("Error getting repositories: {}", msg),
     }

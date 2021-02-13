@@ -1,7 +1,9 @@
 use serde::Deserialize;
 use std::path::Path;
 
-use git2::{build::RepoBuilder, FetchOptions, Progress, RemoteCallbacks, Repository as GitRepository};
+use git2::{
+    build::RepoBuilder, FetchOptions, Progress, RemoteCallbacks, Repository as GitRepository,
+};
 
 const FETCH_HEAD_REF: &str = "FETCH_HEAD";
 
@@ -18,7 +20,11 @@ impl Repository {
         path.as_ref().exists()
     }
 
-    pub fn clone<P: AsRef<Path>, F: Fn(Progress) + 'static>(&self, path: P, callback: F) -> Result<(), git2::Error> {
+    pub fn clone<P: AsRef<Path>, F: Fn(Progress) + 'static>(
+        &self,
+        path: P,
+        callback: F,
+    ) -> Result<(), git2::Error> {
         let mut builder = RepoBuilder::new();
         builder.fetch_options(Repository::build_fetch_options(callback));
 
@@ -28,13 +34,20 @@ impl Repository {
         }
     }
 
-    pub fn fetch<P: AsRef<Path>, F: Fn(Progress) + 'static>(&self, path: P, callback: F) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn fetch<P: AsRef<Path>, F: Fn(Progress) + 'static>(
+        &self,
+        path: P,
+        callback: F,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let repo = GitRepository::open(path)?;
         Repository::fetch_internal(&repo, callback)?;
         Ok(())
     }
 
-    fn fetch_internal<F: Fn(Progress) + 'static>(repo: &GitRepository, callback: F) -> Result<git2::AnnotatedCommit, Box<dyn std::error::Error>> {
+    fn fetch_internal<F: Fn(Progress) + 'static>(
+        repo: &GitRepository,
+        callback: F,
+    ) -> Result<git2::AnnotatedCommit, Box<dyn std::error::Error>> {
         let mut fetch_opts = Repository::build_fetch_options(callback);
         // Always fetch all tags.
         // Perform a download and also update tips
@@ -60,6 +73,9 @@ impl Repository {
         fetch_opts.remote_callbacks(cbs);
         fetch_opts
     }
+
+    // TODO: support fastforwards
+    // TODO: support bare repos
 }
 
 #[cfg(test)]
@@ -72,11 +88,11 @@ mod tests {
             let path = &tempfile::tempdir().unwrap();
             let r = super::test_repo();
             r.clone(path, |_p| {}).unwrap();
-    
+
             assert!(r.is_at_path(path)); // is_at_path must be true, because we cloned it there*
             assert!(path.path().join(".git").exists()); // .git directory should exist
         }
-    
+
         #[test]
         #[should_panic(expected = "unsupported URL protocol")]
         fn should_fail_on_invalid_clone_url() {
@@ -110,7 +126,6 @@ mod tests {
         let sub_dir = path.path().join("test"); // dir doesn't exist there => repo is not there
         assert!(!test_repo().is_at_path(sub_dir));
     }
-
 
     fn test_repo() -> Repository {
         Repository {
