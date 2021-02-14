@@ -17,16 +17,19 @@ impl Repository {
     pub fn is_at_path<P: AsRef<Path>>(&self, path: P) -> bool {
         // TODO: do other checks to verify it is this repository that is located at this path
         // e.g. check remote
-        path.as_ref().exists()
+        let p = path.as_ref();
+        p.exists() && GitRepository::open(p).is_ok()
     }
 
     pub fn clone<P: AsRef<Path>, F: Fn(Progress) + 'static>(
         &self,
         path: P,
         callback: F,
+        bare: bool,
     ) -> Result<(), git2::Error> {
         let mut builder = RepoBuilder::new();
         builder.fetch_options(Repository::build_fetch_options(callback));
+        builder.bare(bare);
 
         match builder.clone(&self.clone_url, path.as_ref()) {
             Ok(_) => Ok(()),
@@ -75,7 +78,6 @@ impl Repository {
     }
 
     // TODO: support fastforwards
-    // TODO: support bare repos
 }
 
 #[cfg(test)]
@@ -87,10 +89,19 @@ mod tests {
         fn should_work() {
             let path = &tempfile::tempdir().unwrap();
             let r = super::test_repo();
-            r.clone(path, |_p| {}).unwrap();
+            r.clone(path, |_p| {}, false).unwrap();
 
-            assert!(r.is_at_path(path)); // is_at_path must be true, because we cloned it there*
+            assert!(r.is_at_path(path)); // is_at_path must be true, because we cloned it there
             assert!(path.path().join(".git").exists()); // .git directory should exist
+        }
+
+        #[test]
+        fn should_work_bare() {
+            let path = &tempfile::tempdir().unwrap();
+            let r = super::test_repo();
+            r.clone(path, |_p| {}, true).unwrap();
+
+            assert!(r.is_at_path(path)); // is_at_path must be true, because we cloned it there
         }
 
         #[test]
@@ -99,7 +110,7 @@ mod tests {
             let path = &tempfile::tempdir().unwrap();
             let mut r = super::test_repo();
             r.clone_url = "test123".to_owned();
-            r.clone(path, |_p| {}).unwrap();
+            r.clone(path, |_p| {}, false).unwrap();
         }
     }
 
@@ -108,7 +119,7 @@ mod tests {
         fn should_work_on_valid_repo() {
             let path = &tempfile::tempdir().unwrap();
             let r = super::test_repo();
-            r.clone(path, |_p| {}).unwrap();
+            r.clone(path, |_p| {}, false).unwrap();
             r.fetch(path, |_p| {}).unwrap();
         }
 

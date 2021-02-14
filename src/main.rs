@@ -2,37 +2,41 @@ mod github;
 mod repository;
 
 use repository::Repository;
+use clap::{Clap, crate_version, crate_authors};
+
+#[derive(Clap)]
+#[clap(version = crate_version!(), author = crate_authors!())]
+pub struct Opts {
+    #[clap(long, about = "Creates bare Git repositories")]
+    bare: bool,
+    #[clap(about = "User or Org of which all repositories shall be cloned")]
+    entity: String,
+}
 
 // TODO: support auth
-// TODO: use tokio runtime
 
 #[tokio::main]
 async fn main() {
-    let args: Vec<String> = std::env::args().collect();
-    if args.len() == 1 {
-        eprintln!("No entity argument provided");
-        return;
-    }
-    let entity = &args[1];
+    let opts = Opts::parse();
 
-    match github::get_repos(entity).await {
-        Ok(repositories) => clone_repositories(entity, &repositories),
+    match github::get_repos(&opts.entity).await {
+        Ok(repositories) => clone_repositories(&opts.entity, &repositories, &opts),
         Err(msg) => eprintln!("Error getting repositories: {}", msg),
     }
 }
 
-fn clone_repositories(entity: &String, repositories: &Vec<Repository>) {
+fn clone_repositories(entity: &String, repositories: &Vec<Repository>, opts: &Opts) {
     for repo in repositories {
-        process_repo(entity, repo);
+        process_repo(entity, repo, opts);
     }
 }
 
-fn process_repo(entity: &String, repo: &Repository) {
+fn process_repo(entity: &String, repo: &Repository, opts: &Opts) {
     let path = format!("{}/{}", entity, repo.name);
     if repo.is_at_path(&path) {
         fetch_repo(&path, repo);
     } else {
-        clone_repo(&path, repo);
+        clone_repo(&path, repo, opts);
     }
 }
 
@@ -44,9 +48,9 @@ fn fetch_repo(path: &String, repo: &Repository) {
     };
 }
 
-fn clone_repo(path: &String, repo: &Repository) {
+fn clone_repo(path: &String, repo: &Repository, opts: &Opts) {
     println!("Cloning {} repository...", repo.name);
-    match repo.clone(&path, handle_progress) {
+    match repo.clone(&path, handle_progress, opts.bare) {
         Err(e) => panic!("Error while cloning: {}", e),
         Ok(()) => (),
     };
