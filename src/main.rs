@@ -1,8 +1,8 @@
 mod github;
 mod repository;
 
+use clap::{crate_authors, crate_version, Clap};
 use repository::Repository;
-use clap::{Clap, crate_version, crate_authors};
 
 #[derive(Clap)]
 #[clap(version = crate_version!(), author = crate_authors!())]
@@ -25,13 +25,13 @@ async fn main() {
     }
 }
 
-fn clone_repositories(entity: &String, repositories: &Vec<Repository>, opts: &Opts) {
+fn clone_repositories(entity: &str, repositories: &[Repository], opts: &Opts) {
     for repo in repositories {
         process_repo(entity, repo, opts);
     }
 }
 
-fn process_repo(entity: &String, repo: &Repository, opts: &Opts) {
+fn process_repo(entity: &str, repo: &Repository, opts: &Opts) {
     let path = format!("{}/{}", entity, repo.name);
     if repo.is_at_path(&path) {
         fetch_repo(&path, repo);
@@ -40,7 +40,7 @@ fn process_repo(entity: &String, repo: &Repository, opts: &Opts) {
     }
 }
 
-fn fetch_repo(path: &String, repo: &Repository) {
+fn fetch_repo(path: &str, repo: &Repository) {
     println!("Fetching {}...", repo.name);
     match repo.fetch(&path, handle_progress) {
         Ok(()) => println!("\nSuccessfully fetched {}.", repo.clone_url),
@@ -48,7 +48,7 @@ fn fetch_repo(path: &String, repo: &Repository) {
     };
 }
 
-fn clone_repo(path: &String, repo: &Repository, opts: &Opts) {
+fn clone_repo(path: &str, repo: &Repository, opts: &Opts) {
     println!("Cloning {} repository...", repo.name);
     match repo.clone(&path, handle_progress, opts.bare) {
         Err(e) => panic!("Error while cloning: {}", e),
