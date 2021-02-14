@@ -1,8 +1,8 @@
 mod github;
 mod repository;
 
+use clap::{crate_authors, crate_version, Clap};
 use repository::Repository;
-use clap::{Clap, crate_version, crate_authors};
 
 #[derive(Clap)]
 #[clap(version = crate_version!(), author = crate_authors!())]
