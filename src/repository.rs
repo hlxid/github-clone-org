@@ -30,8 +30,11 @@ impl Repository {
         p.exists() && GitRepository::open(p).is_ok()
     }
 
-    pub fn open<P: AsRef<Path>>(meta: &RepositoryMetadata, path: P) -> Result<Repository, git2::Error> {
-        return Ok(Repository {
+    pub fn open<P: AsRef<Path>>(
+        meta: &RepositoryMetadata,
+        path: P,
+    ) -> Result<Repository, git2::Error> {
+        Ok(Repository {
             meta: meta.clone(),
             git: git2::Repository::open(path)?,
         })
@@ -58,7 +61,10 @@ impl Repository {
         }
     }
 
-    pub fn fetch<F: Fn(Progress) + 'static>(&self, callback: F) -> Result<git2::AnnotatedCommit, Box<dyn std::error::Error>> {
+    pub fn fetch<F: Fn(Progress) + 'static>(
+        &self,
+        callback: F,
+    ) -> Result<git2::AnnotatedCommit, Box<dyn std::error::Error>> {
         let mut fetch_opts = Repository::build_fetch_options(callback);
         // Always fetch all tags.
         // Perform a download and also update tips
@@ -102,28 +108,29 @@ impl Repository {
         } else {
             // Normal merge is also not supported because this tool is mainly for archival purposes
             // and if you modify it you can also do the merge yourself.
-            self.merge_unsupported(&analysis)
+            self.merge_unsupported(&analysis);
+            Ok(())
         }
     }
 
-    fn merge_unsupported(&self, analysis: &MergeAnalysis) -> Result<(), git2::Error> {
+    fn merge_unsupported(&self, analysis: &MergeAnalysis) {
         println!(
             "Can't merge changes in {} repository: {:?}",
             self.meta.name, analysis
         );
         println!("You may wish to merge these changes manually.");
-        Ok(())
     }
 
-    fn fast_forward(
-        &self,
-        fetch_commit: &git2::AnnotatedCommit,
-    ) -> Result<(), git2::Error> {
+    fn fast_forward(&self, fetch_commit: &git2::AnnotatedCommit) -> Result<(), git2::Error> {
         println!("Performing a fast forward in {}", self.meta.name);
 
         match self.git.find_reference(DEFAULT_BRANCH_REF) {
             Ok(mut r) => Repository::fast_forward_to_branch(&self.git, &fetch_commit, &mut r),
-            Err(_) => Repository::set_head_directly_to_commit(&self.git, &fetch_commit, DEFAULT_BRANCH_REF),
+            Err(_) => Repository::set_head_directly_to_commit(
+                &self.git,
+                &fetch_commit,
+                DEFAULT_BRANCH_REF,
+            ),
         }
     }
 
@@ -248,14 +255,26 @@ mod tests {
             let repo = super::Repository::clone(&meta, path, |_p| {}, false).unwrap();
 
             // Walk back to genesis commit
-            Command::new("git").arg("reset").arg("553c2077f0edc3d5dc5d17262f6aa498e69d6f8e").arg("--hard").spawn().unwrap();
+            Command::new("git")
+                .arg("reset")
+                .arg("553c2077f0edc3d5dc5d17262f6aa498e69d6f8e")
+                .arg("--hard")
+                .spawn()
+                .unwrap();
 
             let fetch_commit = repo.fetch(|_p| {}).unwrap();
             repo.merge(&fetch_commit).unwrap();
 
-            let out = Command::new("git").arg("rev-parse").arg("HEAD").output().unwrap();
+            let out = Command::new("git")
+                .arg("rev-parse")
+                .arg("HEAD")
+                .output()
+                .unwrap();
             let resulting_commit_hash = String::from_utf8_lossy(&out.stdout);
-            assert_eq!(resulting_commit_hash.trim(), "7ddb23a9520a84a15953dfd247d488cf1ecf6d5f")
+            assert_ne!(
+                resulting_commit_hash.trim(),
+                "553c2077f0edc3d5dc5d17262f6aa498e69d6f8e"
+            ) // commit has changed
         }
     }
 

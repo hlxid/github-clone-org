@@ -1,4 +1,4 @@
-use clap::{Clap, crate_authors, crate_version};
+use clap::{crate_authors, crate_version, Clap};
 
 use repository::Repository;
 
@@ -39,7 +39,10 @@ fn process_repo(entity: &str, meta: &RepositoryMetadata, opts: &Opts) {
     if Repository::is_at_path(&meta, &path) {
         match Repository::open(&meta, &path) {
             Ok(repo) => fetch_repo(&repo),
-            Err(err) => println!("Couldn't open repository {} at {}: {}", meta.name, &path, err)
+            Err(err) => println!(
+                "Couldn't open repository {} at {}: {}",
+                meta.name, &path, err
+            ),
         };
     } else {
         clone_repo(&path, meta, opts);
@@ -53,19 +56,18 @@ fn fetch_repo(repo: &Repository) {
             println!("\nSuccessfully fetched {}.", repo.meta.clone_url);
             match repo.merge(&fetch_commit) {
                 Err(err) => println!("Couldn't merge repo {}: {}", repo.meta.name, err),
-                Ok(()) => ()
+                Ok(()) => (),
             }
-        },
+        }
         Err(e) => panic!("{}", e),
     };
 }
 
 fn clone_repo(path: &str, meta: &RepositoryMetadata, opts: &Opts) {
     println!("Cloning {} repository...", meta.name);
-    match Repository::clone(meta, &path, handle_progress, opts.bare) {
-        Err(e) => panic!("Error while cloning: {}", e),
-        Ok(_) => (),
-    };
+    if let Err(e) = Repository::clone(meta, &path, handle_progress, opts.bare) {
+        panic!("Error while cloning: {}", e);
+    }
     println!("\nSuccessfully cloned {}.", meta.clone_url)
 }
 

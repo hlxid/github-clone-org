@@ -15,7 +15,10 @@ pub async fn get_repos<S: AsRef<str>>(entity: S) -> Result<Vec<RepositoryMetadat
     }
 }
 
-async fn get_repos_internal(entity: &str, is_user: bool) -> Result<Vec<RepositoryMetadata>, String> {
+async fn get_repos_internal(
+    entity: &str,
+    is_user: bool,
+) -> Result<Vec<RepositoryMetadata>, String> {
     let descriptor = if is_user { "users" } else { "orgs" };
     let url = format!("{}/{}/{}/repos", GITHUB_API, descriptor, entity);
     let client = reqwest::Client::new();
