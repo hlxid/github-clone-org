@@ -1,11 +1,14 @@
+use clap::{Clap, crate_authors, crate_version};
+
+use repository::Repository;
+
+use crate::repository::RepositoryMetadata;
+
 mod github;
 mod repository;
 
-use clap::{crate_authors, crate_version, Clap};
-use repository::Repository;
-
 #[derive(Clap)]
-#[clap(version = crate_version!(), author = crate_authors!())]
+#[clap(version = crate_version ! (), author = crate_authors ! ())]
 pub struct Opts {
     #[clap(long, about = "Creates bare Git repositories")]
     bare: bool,
@@ -25,36 +28,45 @@ async fn main() {
     }
 }
 
-fn clone_repositories(entity: &str, repositories: &[Repository], opts: &Opts) {
+fn clone_repositories(entity: &str, repositories: &[RepositoryMetadata], opts: &Opts) {
     for repo in repositories {
         process_repo(entity, repo, opts);
     }
 }
 
-fn process_repo(entity: &str, repo: &Repository, opts: &Opts) {
-    let path = format!("{}/{}", entity, repo.name);
-    if repo.is_at_path(&path) {
-        fetch_repo(&path, repo);
+fn process_repo(entity: &str, meta: &RepositoryMetadata, opts: &Opts) {
+    let path = format!("{}/{}", entity, meta.name);
+    if Repository::is_at_path(&meta, &path) {
+        match Repository::open(&meta, &path) {
+            Ok(repo) => fetch_repo(&repo),
+            Err(err) => println!("Couldn't open repository {} at {}: {}", meta.name, &path, err)
+        };
     } else {
-        clone_repo(&path, repo, opts);
+        clone_repo(&path, meta, opts);
     }
 }
 
-fn fetch_repo(path: &str, repo: &Repository) {
-    println!("Fetching {}...", repo.name);
-    match repo.fetch(&path, handle_progress) {
-        Ok(()) => println!("\nSuccessfully fetched {}.", repo.clone_url),
+fn fetch_repo(repo: &Repository) {
+    println!("Fetching {}...", repo.meta.name);
+    match repo.fetch(handle_progress) {
+        Ok(fetch_commit) => {
+            println!("\nSuccessfully fetched {}.", repo.meta.clone_url);
+            match repo.merge(&fetch_commit) {
+                Err(err) => println!("Couldn't merge repo {}: {}", repo.meta.name, err),
+                Ok(()) => ()
+            }
+        },
         Err(e) => panic!("{}", e),
     };
 }
 
-fn clone_repo(path: &str, repo: &Repository, opts: &Opts) {
-    println!("Cloning {} repository...", repo.name);
-    match repo.clone(&path, handle_progress, opts.bare) {
+fn clone_repo(path: &str, meta: &RepositoryMetadata, opts: &Opts) {
+    println!("Cloning {} repository...", meta.name);
+    match Repository::clone(meta, &path, handle_progress, opts.bare) {
         Err(e) => panic!("Error while cloning: {}", e),
-        Ok(()) => (),
+        Ok(_) => (),
     };
-    println!("\nSuccessfully cloned {}.", repo.clone_url)
+    println!("\nSuccessfully cloned {}.", meta.clone_url)
 }
 
 fn handle_progress(progress: git2::Progress) {

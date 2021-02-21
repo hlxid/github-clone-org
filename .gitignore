@@ -1,2 +1,3 @@
-/target
-/codeoverflow-org
+*/
+!src
+!.github
