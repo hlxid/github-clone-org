@@ -17,19 +17,38 @@ pub struct RepositoryMetadata {
     pub clone_url: String,
 }
 
+impl RepositoryMetadata {
+    pub fn is_at_path<P: AsRef<Path>>(&self, path: P) -> bool {
+        let p = path.as_ref();
+        if !p.exists() {
+            return false;
+        }
+
+        let repo = GitRepository::open(p);
+        if repo.is_err() {
+            return false;
+        }
+        let repo = repo.unwrap();
+
+        let remote = repo.find_remote(REMOTE_NAME);
+        if remote.is_err() {
+            return false;
+        }
+        let remote = remote.unwrap();
+
+        match remote.url() {
+            Some(url) => url == self.clone_url,
+            None => false
+        }
+    }
+}
+
 pub struct Repository {
     pub meta: RepositoryMetadata,
     git: GitRepository,
 }
 
 impl Repository {
-    pub fn is_at_path<P: AsRef<Path>>(_meta: &RepositoryMetadata, path: P) -> bool {
-        // TODO: do other checks to verify it is this repository that is located at this path
-        // e.g. check remote
-        let p = path.as_ref();
-        p.exists() && GitRepository::open(p).is_ok()
-    }
-
     pub fn open<P: AsRef<Path>>(
         meta: &RepositoryMetadata,
         path: P,
@@ -187,6 +206,35 @@ impl Repository {
 mod tests {
     use super::*;
 
+    mod is_at_path {
+        use std::process::Command;
+
+        #[test]
+        fn newly_cloned_repo() {
+            let path = &tempfile::tempdir().unwrap();
+            let meta = super::test_repo();
+            super::Repository::clone(&meta, path, |_p| {}, false).unwrap();
+            assert!(meta.is_at_path(path)); // is_at_path must be true, because we cloned it there
+        }
+
+        #[test]
+        fn no_remote() {
+            let path = &tempfile::tempdir().unwrap();
+            let meta = super::test_repo();
+            super::Repository::clone(&meta, path, |_p| {}, false).unwrap();
+
+            Command::new("git")
+                .arg("remote")
+                .arg("remove")
+                .arg("origin")
+                .current_dir(path)
+                .spawn()
+                .unwrap();
+
+            assert_eq!(meta.is_at_path(path), false) // false since the remote is missing
+        }
+    }
+
     mod clone {
         #[test]
         fn normal() {
@@ -194,7 +242,6 @@ mod tests {
             let meta = super::test_repo();
             super::Repository::clone(&meta, path, |_p| {}, false).unwrap();
 
-            assert!(super::Repository::is_at_path(&meta, path)); // is_at_path must be true, because we cloned it there
             assert!(path.path().join(".git").exists()); // .git directory should exist
         }
 
@@ -204,7 +251,7 @@ mod tests {
             let meta = super::test_repo();
             super::Repository::clone(&meta, path, |_p| {}, true).unwrap();
 
-            assert!(super::Repository::is_at_path(&meta, path)); // is_at_path must be true, because we cloned it there
+            assert!(meta.is_at_path(path)); // is_at_path must be true, because we cloned it there
         }
 
         #[test]
@@ -235,6 +282,7 @@ mod tests {
             repo.fetch(|_p| {}).unwrap();
         }
     }
+
     mod merge {
         use std::process::Command;
 
@@ -259,6 +307,7 @@ mod tests {
                 .arg("reset")
                 .arg("553c2077f0edc3d5dc5d17262f6aa498e69d6f8e")
                 .arg("--hard")
+                .current_dir(path)
                 .spawn()
                 .unwrap();
 
@@ -268,12 +317,13 @@ mod tests {
             let out = Command::new("git")
                 .arg("rev-parse")
                 .arg("HEAD")
+                .current_dir(path)
                 .output()
                 .unwrap();
             let resulting_commit_hash = String::from_utf8_lossy(&out.stdout);
-            assert_ne!(
+            assert_eq!(
                 resulting_commit_hash.trim(),
-                "553c2077f0edc3d5dc5d17262f6aa498e69d6f8e"
+                "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d"
             ) // commit has changed
         }
     }
@@ -282,7 +332,7 @@ mod tests {
     fn empty_dir_is_not_repo() {
         let path = tempfile::tempdir().unwrap();
         let sub_dir = path.path().join("test"); // dir doesn't exist there => repo is not there
-        assert!(!super::Repository::is_at_path(&test_repo(), sub_dir));
+        assert!(!test_repo().is_at_path(sub_dir));
     }
 
     fn test_repo() -> RepositoryMetadata {

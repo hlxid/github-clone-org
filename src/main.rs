@@ -1,8 +1,11 @@
-use clap::{crate_authors, crate_version, Clap};
+use std::path::Path;
+
+use clap::{Clap, crate_authors, crate_version};
 
 use repository::Repository;
 
 use crate::repository::RepositoryMetadata;
+use std::fs;
 
 mod github;
 mod repository;
@@ -35,17 +38,24 @@ fn clone_repositories(entity: &str, repositories: &[RepositoryMetadata], opts: &
 }
 
 fn process_repo(entity: &str, meta: &RepositoryMetadata, opts: &Opts) {
-    let path = format!("{}/{}", entity, meta.name);
-    if Repository::is_at_path(&meta, &path) {
-        match Repository::open(&meta, &path) {
+    let path_string = format!("{}/{}", entity, meta.name);
+    let path: &Path = Path::new(&path_string);
+    if meta.is_at_path(path) {
+        match Repository::open(&meta, path) {
             Ok(repo) => fetch_repo(&repo),
             Err(err) => println!(
                 "Couldn't open repository {} at {}: {}",
-                meta.name, &path, err
+                meta.name, path_string, err
             ),
         };
     } else {
-        clone_repo(&path, meta, opts);
+        if path.exists() {
+            // Repo already exists, but is invalid in some way.
+            // Deleting it so it can be re-cloned again.
+            println!("Repository {} is invalid. Re-cloning it...", meta.name);
+            fs::remove_dir_all(path).unwrap();
+        }
+        clone_repo(path, meta, opts);
     }
 }
 
@@ -63,7 +73,7 @@ fn fetch_repo(repo: &Repository) {
     };
 }
 
-fn clone_repo(path: &str, meta: &RepositoryMetadata, opts: &Opts) {
+fn clone_repo(path: &Path, meta: &RepositoryMetadata, opts: &Opts) {
     println!("Cloning {} repository...", meta.name);
     if let Err(e) = Repository::clone(meta, &path, handle_progress, opts.bare) {
         panic!("Error while cloning: {}", e);
