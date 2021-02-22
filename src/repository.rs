@@ -200,8 +200,6 @@ impl Repository {
     // endregion
 }
 
-// region test
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -229,7 +227,8 @@ mod tests {
                 .arg("origin")
                 .current_dir(path)
                 .spawn()
-                .unwrap();
+                .unwrap()
+                .wait();
 
             assert_eq!(meta.is_at_path(path), false) // false since the remote is missing
         }
@@ -309,7 +308,8 @@ mod tests {
                 .arg("--hard")
                 .current_dir(path)
                 .spawn()
-                .unwrap();
+                .unwrap()
+                .wait();
 
             let fetch_commit = repo.fetch(|_p| {}).unwrap();
             repo.merge(&fetch_commit).unwrap();
@@ -342,5 +342,3 @@ mod tests {
         }
     }
 }
-
-// endregion
