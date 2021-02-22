@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use clap::{Clap, crate_authors, crate_version};
+use clap::{crate_authors, crate_version, Clap};
 
 use repository::Repository;
 

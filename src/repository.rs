@@ -38,7 +38,7 @@ impl RepositoryMetadata {
 
         match remote.url() {
             Some(url) => url == self.clone_url,
-            None => false
+            None => false,
         }
     }
 }
