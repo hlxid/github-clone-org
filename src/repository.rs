@@ -228,7 +228,8 @@ mod tests {
                 .current_dir(path)
                 .spawn()
                 .unwrap()
-                .wait();
+                .wait()
+                .unwrap();
 
             assert_eq!(meta.is_at_path(path), false) // false since the remote is missing
         }
@@ -309,7 +310,8 @@ mod tests {
                 .current_dir(path)
                 .spawn()
                 .unwrap()
-                .wait();
+                .wait()
+                .unwrap();
 
             let fetch_commit = repo.fetch(|_p| {}).unwrap();
             repo.merge(&fetch_commit).unwrap();
