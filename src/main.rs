@@ -17,6 +17,8 @@ pub struct Opts {
     bare: bool,
     #[clap(about = "User or Org of which all repositories shall be cloned")]
     entity: String,
+    #[clap(long, about = "whether forks should be ignored")]
+    no_forks: bool,
 }
 
 // TODO: support auth
@@ -25,7 +27,7 @@ pub struct Opts {
 async fn main() {
     let opts = Opts::parse();
 
-    match github::get_repos(&opts.entity).await {
+    match github::get_repos(&opts.entity, opts.no_forks).await {
         Ok(repositories) => clone_repositories(&opts.entity, &repositories, &opts),
         Err(msg) => eprintln!("Error getting repositories: {}", msg),
     }

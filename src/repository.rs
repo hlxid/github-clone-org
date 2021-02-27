@@ -11,10 +11,13 @@ const REMOTE_NAME: &str = "origin";
 const DEFAULT_BRANCH: &str = "master";
 const DEFAULT_BRANCH_REF: &str = "refs/heads/master";
 
+// TODO: find out default branch automatically, because it may also be named `dev`, `main` or differently
+
 #[derive(Deserialize, Debug, Clone)]
 pub struct RepositoryMetadata {
     pub name: String,
     pub clone_url: String,
+    pub fork: bool,
 }
 
 impl RepositoryMetadata {
@@ -341,6 +344,7 @@ mod tests {
         RepositoryMetadata {
             name: "Hello-World".to_owned(),
             clone_url: "https://github.com/octocat/Hello-World.git".to_owned(),
+            fork: false,
         }
     }
 }

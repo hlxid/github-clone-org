@@ -1,18 +1,18 @@
 use crate::repository::RepositoryMetadata;
 
-// TODO: use GraphQL API
-
 const GITHUB_API: &str = "https://api.github.com";
 
 use reqwest::header::USER_AGENT;
 use reqwest::StatusCode;
 
-pub async fn get_repos<S: AsRef<str>>(entity: S) -> Result<Vec<RepositoryMetadata>, String> {
+pub async fn get_repos<S: AsRef<str>>(entity: S, filter_forks: bool) -> Result<Vec<RepositoryMetadata>, String> {
     let entity_ref = entity.as_ref();
-    match get_repos_internal(entity_ref, true).await {
+    let repos = match get_repos_internal(entity_ref, true).await {
         Ok(repos) => Ok(repos),
         Err(_) => get_repos_internal(entity_ref, false).await,
-    }
+    }?;
+
+    Ok(repos.into_iter().filter(|r| !r.fork || !filter_forks).collect())
 }
 
 async fn get_repos_internal(
@@ -47,13 +47,13 @@ mod tests {
     use super::*;
     #[tokio::test]
     async fn works_with_user() {
-        let repos = get_repos("daniel0611");
+        let repos = get_repos("daniel0611", false);
         internal_test("daniel0611", repos.await.unwrap());
     }
 
     #[tokio::test]
     async fn works_with_org() {
-        let repos = get_repos("kubernetes");
+        let repos = get_repos("kubernetes", false);
         internal_test("kubernetes", repos.await.unwrap());
     }
 
@@ -61,8 +61,19 @@ mod tests {
     #[should_panic(expected = "entity is not valid")]
     async fn fails_with_nonexistent_entity() {
         let entity = "abnkklvmdlkdklvvfdslkjdsfjldfslkdsalksadmlk";
-        let repos = get_repos(entity); // Probably nobody will use this name, at least I hope
+        let repos = get_repos(entity, false); // Probably nobody will use this name, at least I hope
         internal_test(entity, repos.await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn filter_forks_works() {
+        // Ensure that DT repo is there if forks aren't filtered.
+        let repos = get_repos("daniel0611", false).await.unwrap();
+        assert_eq!(repos.iter().find(|r| r.name == "DefinitelyTyped").is_some(), true);
+
+        // but it should exist if forks are filtered out.
+        let repos = get_repos("daniel0611", true).await.unwrap();
+        assert_eq!(repos.iter().find(|r| r.name == "DefinitelyTyped").is_some(), false);
     }
 
     fn internal_test(entity: &str, repos: Vec<RepositoryMetadata>) {
