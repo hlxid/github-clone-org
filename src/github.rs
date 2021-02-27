@@ -5,14 +5,20 @@ const GITHUB_API: &str = "https://api.github.com";
 use reqwest::header::USER_AGENT;
 use reqwest::StatusCode;
 
-pub async fn get_repos<S: AsRef<str>>(entity: S, filter_forks: bool) -> Result<Vec<RepositoryMetadata>, String> {
+pub async fn get_repos<S: AsRef<str>>(
+    entity: S,
+    filter_forks: bool,
+) -> Result<Vec<RepositoryMetadata>, String> {
     let entity_ref = entity.as_ref();
     let repos = match get_repos_internal(entity_ref, true).await {
         Ok(repos) => Ok(repos),
         Err(_) => get_repos_internal(entity_ref, false).await,
     }?;
 
-    Ok(repos.into_iter().filter(|r| !r.fork || !filter_forks).collect())
+    Ok(repos
+        .into_iter()
+        .filter(|r| !r.fork || !filter_forks)
+        .collect())
 }
 
 async fn get_repos_internal(
@@ -69,11 +75,17 @@ mod tests {
     async fn filter_forks_works() {
         // Ensure that DT repo is there if forks aren't filtered.
         let repos = get_repos("daniel0611", false).await.unwrap();
-        assert_eq!(repos.iter().find(|r| r.name == "DefinitelyTyped").is_some(), true);
+        assert_eq!(
+            repos.iter().find(|r| r.name == "DefinitelyTyped").is_some(),
+            true
+        );
 
         // but it should exist if forks are filtered out.
         let repos = get_repos("daniel0611", true).await.unwrap();
-        assert_eq!(repos.iter().find(|r| r.name == "DefinitelyTyped").is_some(), false);
+        assert_eq!(
+            repos.iter().find(|r| r.name == "DefinitelyTyped").is_some(),
+            false
+        );
     }
 
     fn internal_test(entity: &str, repos: Vec<RepositoryMetadata>) {
