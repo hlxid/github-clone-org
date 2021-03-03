@@ -9,9 +9,6 @@ use serde::Deserialize;
 const FETCH_HEAD_REF: &str = "FETCH_HEAD";
 const REMOTE_NAME: &str = "origin";
 const DEFAULT_BRANCH: &str = "master";
-const DEFAULT_BRANCH_REF: &str = "refs/heads/master";
-
-// TODO: find out default branch automatically, because it may also be named `dev`, `main` or differently
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct RepositoryMetadata {
@@ -62,6 +59,12 @@ impl Repository {
         })
     }
 
+    fn get_current_branch(&self) -> Result<String, git2::Error> {
+        let head = self.git.head()?;
+        let branch_string = head.shorthand().unwrap();
+        Ok(branch_string.to_owned())
+    }
+
     // region clone & fetch
 
     pub fn clone<P: AsRef<Path>, F: Fn(Progress) + 'static>(
@@ -92,8 +95,11 @@ impl Repository {
         // Perform a download and also update tips
         fetch_opts.download_tags(git2::AutotagOption::All);
 
+        let branch_name = self
+            .get_current_branch()
+            .unwrap_or(DEFAULT_BRANCH.to_owned());
         let mut remote = self.git.find_remote(REMOTE_NAME)?;
-        remote.fetch(&[DEFAULT_BRANCH], Some(&mut fetch_opts), None)?;
+        remote.fetch(&[branch_name], Some(&mut fetch_opts), None)?;
 
         let fetch_head_ref = self.git.find_reference(FETCH_HEAD_REF)?;
         let fetch_head_commit = self.git.reference_to_annotated_commit(&fetch_head_ref)?;
@@ -122,11 +128,17 @@ impl Repository {
             return Ok(());
         }
 
+        let head = self.git.head()?;
+        if !head.is_branch() {
+            println!("Currently not on a branch, not doing a merge.");
+            return Ok(());
+        }
+
         let (analysis, _) = self.git.merge_analysis(&[fetch_commit])?;
         if analysis.is_up_to_date() {
             Ok(()) // Nothing to do, already up to date.
         } else if analysis.is_fast_forward() {
-            self.fast_forward(fetch_commit)
+            self.fast_forward(fetch_commit, head.name().unwrap())
         } else {
             // Normal merge is also not supported because this tool is mainly for archival purposes
             // and if you modify it you can also do the merge yourself.
@@ -143,16 +155,16 @@ impl Repository {
         println!("You may wish to merge these changes manually.");
     }
 
-    fn fast_forward(&self, fetch_commit: &git2::AnnotatedCommit) -> Result<(), git2::Error> {
+    fn fast_forward(
+        &self,
+        fetch_commit: &git2::AnnotatedCommit,
+        ref_name: &str,
+    ) -> Result<(), git2::Error> {
         println!("Performing a fast forward in {}", self.meta.name);
 
-        match self.git.find_reference(DEFAULT_BRANCH_REF) {
+        match self.git.find_reference(ref_name) {
             Ok(mut r) => Repository::fast_forward_to_branch(&self.git, &fetch_commit, &mut r),
-            Err(_) => Repository::set_head_directly_to_commit(
-                &self.git,
-                &fetch_commit,
-                DEFAULT_BRANCH_REF,
-            ),
+            Err(_) => Repository::set_head_directly_to_commit(&self.git, &fetch_commit, ref_name),
         }
     }
 
