@@ -97,7 +97,7 @@ impl Repository {
 
         let branch_name = self
             .get_current_branch()
-            .unwrap_or(DEFAULT_BRANCH.to_owned());
+            .unwrap_or_else(|_| DEFAULT_BRANCH.to_owned());
         let mut remote = self.git.find_remote(REMOTE_NAME)?;
         remote.fetch(&[branch_name], Some(&mut fetch_opts), None)?;
 
