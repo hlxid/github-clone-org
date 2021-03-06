@@ -34,6 +34,7 @@ async fn main() {
 }
 
 fn clone_repositories(entity: &str, repositories: &[RepositoryMetadata], opts: &Opts) {
+    println!("Cloning {} repositories...", repositories.len());
     for repo in repositories {
         process_repo(entity, repo, opts);
     }

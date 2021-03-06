@@ -1,18 +1,22 @@
+use futures::future::{BoxFuture, FutureExt};
+use reqwest::header::USER_AGENT;
+use reqwest::StatusCode;
+
 use crate::repository::RepositoryMetadata;
 
 const GITHUB_API: &str = "https://api.github.com";
+const PAGE_SIZE: usize = 100;
 
-use reqwest::header::USER_AGENT;
-use reqwest::StatusCode;
+// region get_repos
 
 pub async fn get_repos<S: AsRef<str>>(
     entity: S,
     filter_forks: bool,
 ) -> Result<Vec<RepositoryMetadata>, String> {
     let entity_ref = entity.as_ref();
-    let repos = match get_repos_internal(entity_ref, true).await {
+    let repos = match get_repos_internal(entity_ref, true, 0).await {
         Ok(repos) => Ok(repos),
-        Err(_) => get_repos_internal(entity_ref, false).await,
+        Err(_) => get_repos_internal(entity_ref, false, 0).await,
     }?;
 
     Ok(repos
@@ -21,36 +25,63 @@ pub async fn get_repos<S: AsRef<str>>(
         .collect())
 }
 
-async fn get_repos_internal(
+fn get_repos_internal(
     entity: &str,
     is_user: bool,
-) -> Result<Vec<RepositoryMetadata>, String> {
-    let descriptor = if is_user { "users" } else { "orgs" };
-    let url = format!("{}/{}/{}/repos", GITHUB_API, descriptor, entity);
-    let client = reqwest::Client::new();
-    let response = match client
-        .get(&url)
-        .header(USER_AGENT, "github-clone-org")
-        .send()
-        .await
-    {
-        Ok(response) => Ok(response),
-        Err(err) => Err(format!("{}", err)),
-    }?;
-
-    match response.status() {
-        StatusCode::OK => match response.json::<Vec<RepositoryMetadata>>().await {
-            Ok(repos) => Ok(repos),
+    current_page: usize,
+) -> BoxFuture<Result<Vec<RepositoryMetadata>, String>> {
+    async move {
+        let response = match build_request(entity, is_user, current_page).send().await {
+            Ok(response) => Ok(response),
             Err(err) => Err(format!("{}", err)),
-        },
-        StatusCode::NOT_FOUND => Err("entity is not valid".into()),
-        _ => Err("unknown error".into()),
+        }?;
+
+        match response.status() {
+            StatusCode::OK => handle_received_repos(entity, is_user, current_page, response).await,
+            StatusCode::NOT_FOUND => Err("entity is not valid".into()),
+            _ => Err("unknown error".into()),
+        }
+    }
+    .boxed()
+}
+
+async fn handle_received_repos(
+    entity: &str,
+    is_user: bool,
+    current_page: usize,
+    response: reqwest::Response,
+) -> Result<Vec<RepositoryMetadata>, String> {
+    match response.json::<Vec<RepositoryMetadata>>().await {
+        Ok(mut repos) => {
+            if repos.len() == PAGE_SIZE {
+                let next_repos = get_repos_internal(entity, is_user, current_page + 1).await?;
+                repos.extend(next_repos.iter().cloned())
+            }
+            Ok(repos)
+        }
+        Err(err) => Err(format!("{}", err)),
     }
 }
+
+fn build_request(entity: &str, is_user: bool, current_page: usize) -> reqwest::RequestBuilder {
+    let descriptor = if is_user { "users" } else { "orgs" };
+    let url = format!(
+        "{}/{}/{}/repos?per_page={}&page={}",
+        GITHUB_API, descriptor, entity, PAGE_SIZE, current_page
+    );
+    println!("url: {}", url);
+
+    reqwest::Client::new()
+        .get(&url)
+        .header(USER_AGENT, "github-clone-org")
+}
+
+// endregion get_repos
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[tokio::test]
     async fn works_with_user() {
         let repos = get_repos("daniel0611", false);
@@ -86,6 +117,16 @@ mod tests {
             repos.iter().find(|r| r.name == "DefinitelyTyped").is_some(),
             false
         );
+    }
+
+    #[tokio::test]
+    async fn pagination_works() {
+        let repos = get_repos("github", false).await.unwrap();
+        // GitHub has 373 repositories. Without doing anything the API would give us 30.
+        // With page_size extended to 100 we would get 100 repositories.
+        // But if pagination works and it follows the pages until it is finished we would
+        // get way more, assuming GitHub won't delete too many repositories.
+        assert!(repos.len() > 100);
     }
 
     fn internal_test(entity: &str, repos: Vec<RepositoryMetadata>) {
