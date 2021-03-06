@@ -66,7 +66,7 @@ fn fetch_repo(repo: &Repository) {
     println!("Fetching {}...", repo.meta.name);
     match repo.fetch(handle_progress) {
         Ok(fetch_commit) => {
-            println!("\nSuccessfully fetched {}.", repo.meta.clone_url);
+            println!("Successfully fetched {}.", repo.meta.clone_url);
             match repo.merge(&fetch_commit) {
                 Err(err) => println!("Couldn't merge repo {}: {}", repo.meta.name, err),
                 Ok(()) => (),
@@ -81,15 +81,18 @@ fn clone_repo(path: &Path, meta: &RepositoryMetadata, opts: &Opts) {
     if let Err(e) = Repository::clone(meta, &path, handle_progress, opts.bare) {
         panic!("Error while cloning: {}", e);
     }
-    println!("\nSuccessfully cloned {}.", meta.clone_url)
+    println!("Successfully cloned {}.", meta.clone_url)
 }
 
 fn handle_progress(progress: git2::Progress) {
     let rec = progress.received_objects();
     let tot = progress.total_objects();
     let percentage = 100 * rec / tot;
-    print!(
-        "\r{}/{} ({}%)",
+    if rec == 0 {
+        println!();
+    }
+    println!(
+        "\x1B[F{}/{} ({}%)",
         progress.received_objects(),
         progress.total_objects(),
         percentage
