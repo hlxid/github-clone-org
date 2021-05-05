@@ -8,7 +8,7 @@ First you'll need `cargo` which should be installed with most rust installations
 run this to install `github-clone-org`:
 
 ```shell
-$ cargo install --git https://github.com/daniel0611/github-clone-org.git
+$ cargo install --git https://github.com/daniel0611/github-clone-org.git --branch main
 ```
 
 ## Usage
