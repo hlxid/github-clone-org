@@ -5,7 +5,7 @@ This is a small rust tool to clone all public GitHub repositories of an organiza
 ## Installation
 
 First you'll need `cargo` which should be installed with most rust installations. If you have cargo installed you can
-run this to install `github-clone-org``:
+run this to install `github-clone-org`:
 
 ```shell
 $ cargo install --git https://github.com/daniel0611/github-clone-org.git
