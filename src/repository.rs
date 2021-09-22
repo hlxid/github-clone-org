@@ -163,8 +163,8 @@ impl Repository {
         println!("Performing a fast forward in {}", self.meta.name);
 
         match self.git.find_reference(ref_name) {
-            Ok(mut r) => Repository::fast_forward_to_branch(&self.git, &fetch_commit, &mut r),
-            Err(_) => Repository::set_head_directly_to_commit(&self.git, &fetch_commit, ref_name),
+            Ok(mut r) => Repository::fast_forward_to_branch(&self.git, fetch_commit, &mut r),
+            Err(_) => Repository::set_head_directly_to_commit(&self.git, fetch_commit, ref_name),
         }
     }
 
@@ -177,12 +177,12 @@ impl Repository {
         // commit directly. Usually this is because you are pulling
         // into an empty repository.
         repo.reference(
-            &ref_name,
+            ref_name,
             fetch_commit.id(),
             true,
             &format!("Setting {} to {}", "master", fetch_commit.id()),
         )?;
-        repo.set_head(&ref_name)?;
+        repo.set_head(ref_name)?;
         repo.checkout_head(Some(
             git2::build::CheckoutBuilder::default()
                 .allow_conflicts(true)

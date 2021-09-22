@@ -44,7 +44,7 @@ fn process_repo(entity: &str, meta: &RepositoryMetadata, opts: &Opts) {
     let path_string = format!("{}/{}", entity, meta.name);
     let path: &Path = Path::new(&path_string);
     if meta.is_at_path(path) {
-        match Repository::open(&meta, path) {
+        match Repository::open(meta, path) {
             Ok(repo) => fetch_repo(&repo),
             Err(err) => println!(
                 "Couldn't open repository {} at {}: {}",
