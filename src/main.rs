@@ -44,7 +44,7 @@ fn process_repo(entity: &str, meta: &RepositoryMetadata, opts: &Opts) {
     let path_string = format!("{}/{}", entity, meta.name);
     let path: &Path = Path::new(&path_string);
     if meta.is_at_path(path) {
-        match Repository::open(&meta, path) {
+        match Repository::open(meta, path) {
             Ok(repo) => fetch_repo(&repo),
             Err(err) => println!(
                 "Couldn't open repository {} at {}: {}",
@@ -67,9 +67,8 @@ fn fetch_repo(repo: &Repository) {
     match repo.fetch(handle_progress) {
         Ok(fetch_commit) => {
             println!("Successfully fetched {}.", repo.meta.clone_url);
-            match repo.merge(&fetch_commit) {
-                Err(err) => println!("Couldn't merge repo {}: {}", repo.meta.name, err),
-                Ok(()) => (),
+            if let Err(err) = repo.merge(&fetch_commit) {
+                println!("Couldn't merge repo {}: {}", repo.meta.name, err);
             }
         }
         Err(e) => panic!("{}", e),
