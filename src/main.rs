@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use clap::{crate_authors, crate_version, Clap};
+use clap::{crate_authors, crate_version, Parser};
 
 use repository::Repository;
 
@@ -10,14 +10,14 @@ use std::fs;
 mod github;
 mod repository;
 
-#[derive(Clap)]
+#[derive(Parser)]
 #[clap(version = crate_version ! (), author = crate_authors ! ())]
 pub struct Opts {
-    #[clap(long, about = "Creates bare Git repositories")]
+    #[clap(long, help = "Creates bare Git repositories")]
     bare: bool,
-    #[clap(about = "User or Org of which all repositories shall be cloned")]
+    #[clap(help = "User or Org of which all repositories shall be cloned")]
     entity: String,
-    #[clap(long, about = "whether forks should be ignored")]
+    #[clap(long, help = "whether forks should be ignored")]
     no_forks: bool,
 }
 
