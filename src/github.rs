@@ -33,7 +33,7 @@ fn get_repos_internal(
     async move {
         let response = match build_request(entity, is_user, current_page).send().await {
             Ok(response) => Ok(response),
-            Err(err) => Err(format!("{}", err)),
+            Err(err) => Err(err.to_string()),
         }?;
 
         match response.status() {
@@ -59,17 +59,16 @@ async fn handle_received_repos(
             }
             Ok(repos)
         }
-        Err(err) => Err(format!("{}", err)),
+        Err(err) => Err(err.to_string()),
     }
 }
 
 fn build_request(entity: &str, is_user: bool, current_page: usize) -> reqwest::RequestBuilder {
     let descriptor = if is_user { "users" } else { "orgs" };
     let url = format!(
-        "{}/{}/{}/repos?per_page={}&page={}",
-        GITHUB_API, descriptor, entity, PAGE_SIZE, current_page
+        "{GITHUB_API}/{descriptor}/{entity}/repos?per_page={PAGE_SIZE}&page={current_page}"
     );
-    println!("url: {}", url);
+    println!("url: {url}");
 
     reqwest::Client::new()
         .get(&url)
