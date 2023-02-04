@@ -29,7 +29,7 @@ async fn main() {
 
     match github::get_repos(&opts.entity, opts.no_forks).await {
         Ok(repositories) => clone_repositories(&opts.entity, &repositories, &opts),
-        Err(msg) => eprintln!("Error getting repositories: {}", msg),
+        Err(msg) => eprintln!("Error getting repositories: {msg}"),
     }
 }
 
@@ -78,7 +78,7 @@ fn fetch_repo(repo: &Repository) {
 fn clone_repo(path: &Path, meta: &RepositoryMetadata, opts: &Opts) {
     println!("Cloning {} repository...", meta.name);
     if let Err(e) = Repository::clone(meta, path, handle_progress, opts.bare) {
-        panic!("Error while cloning: {}", e);
+        panic!("Error while cloning: {e}");
     }
     println!("Successfully cloned {}.", meta.clone_url)
 }
